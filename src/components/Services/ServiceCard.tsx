@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { MapPinIcon, StarIcon, ExternalLinkIcon, PhoneIcon, MailIcon, CheckCircleIcon } from 'lucide-react';
-import { Button } from '../UI/Button';
-import { ServiceDetailsModal } from './ServiceDetailsModal';
-import { VetBookingModal } from './VetBookingModal';
-import { useAuth } from '../Auth/AuthContext';
-import { PetContext } from '../Pets/PetContext';
+import { useState, useEffect, useContext } from "react";
+import { StarIcon, MailIcon, CheckCircleIcon } from "lucide-react";
+import { Button } from "../UI/Button";
+import { ServiceDetailsModal } from "./ServiceDetailsModal";
+import { useAuth } from "../Auth/AuthContext";
+import { PetContext } from "../Pets/PetContext";
 
 interface Provider {
   id?: string;
@@ -28,6 +27,8 @@ interface ServiceDetails {
   appointmentRequired?: boolean;
   isEmergency?: boolean;
   emergency24Hrs?: boolean;
+  serviceName?: string;
+  description?: string;
 
   // Trainer specific
   specialization?: string;
@@ -110,17 +111,36 @@ export const ServiceCard = ({
   price,
   provider,
   serviceDetails,
-  collectionName
+  collectionName,
 }: ServiceCardProps) => {
   const [showModal, setShowModal] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
-  const [existingBooking, setExistingBooking] = useState(null);
+  const [existingBooking, setExistingBooking] = useState<any>(null);
   const [checkingBooking, setCheckingBooking] = useState(false);
 
   const { user } = useAuth();
   const { activePet } = useContext(PetContext);
+
+  // Debug modal state changes
+  const handleModalOpen = (source: string) => {
+    if (showModal) {
+      console.log(
+        `Modal already open for: ${name}, ignoring request from: ${source}`
+      );
+      return;
+    }
+    console.log(`Opening modal from: ${source}`, {
+      serviceName: name,
+      serviceId: id,
+    });
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    console.log(`Closing modal for: ${name}`);
+    setShowModal(false);
+  };
 
   // Check for existing booking when component mounts or active pet changes
   useEffect(() => {
@@ -128,17 +148,26 @@ export const ServiceCard = ({
   }, [activePet, user]);
 
   const checkExistingBooking = async () => {
-    if (!activePet || !user || (collectionName !== 'vets' && collectionName !== 'veterinary')) {
+    if (
+      !activePet ||
+      !user ||
+      (collectionName !== "vets" && collectionName !== "veterinary")
+    ) {
       return;
     }
 
     setCheckingBooking(true);
     try {
-      const response = await fetch(`/api/vet-bookings/check?petId=${activePet.id}&serviceName=${encodeURIComponent(name)}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      const response = await fetch(
+        `/api/vet-bookings/check?petId=${
+          activePet.id
+        }&serviceName=${encodeURIComponent(name)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
         }
-      });
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -146,7 +175,7 @@ export const ServiceCard = ({
         setExistingBooking(data.booking);
       }
     } catch (error) {
-      console.error('Error checking booking status:', error);
+      console.error("Error checking booking status:", error);
     } finally {
       setCheckingBooking(false);
     }
@@ -164,7 +193,7 @@ export const ServiceCard = ({
     const serviceType = collectionName?.toLowerCase();
 
     switch (serviceType) {
-      case 'trainers':
+      case "trainers":
         return (
           <div className="mt-2 space-y-1">
             {serviceDetails?.serviceName && (
@@ -194,7 +223,7 @@ export const ServiceCard = ({
           </div>
         );
 
-      case 'walkers':
+      case "walkers":
         return (
           <div className="mt-2 space-y-1">
             {serviceDetails?.walkDuration && (
@@ -202,11 +231,12 @@ export const ServiceCard = ({
                 Walk Duration: {serviceDetails.walkDuration}
               </div>
             )}
-            {serviceDetails?.walkingAreas && serviceDetails.walkingAreas.length > 0 && (
-              <div className="text-xs text-gray-300">
-                Areas: {serviceDetails.walkingAreas.slice(0, 2).join(', ')}
-              </div>
-            )}
+            {serviceDetails?.walkingAreas &&
+              serviceDetails.walkingAreas.length > 0 && (
+                <div className="text-xs text-gray-300">
+                  Areas: {serviceDetails.walkingAreas.slice(0, 2).join(", ")}
+                </div>
+              )}
             <div className="flex gap-2 text-xs">
               {serviceDetails?.groupWalks && (
                 <span className="text-green-400">Group Walks</span>
@@ -226,7 +256,7 @@ export const ServiceCard = ({
           </div>
         );
 
-      case 'ngos':
+      case "ngos":
         return (
           <div className="mt-2 space-y-1">
             {serviceDetails?.adoptionServices && (
@@ -234,39 +264,47 @@ export const ServiceCard = ({
                 ���️ Adoption Services Available
               </div>
             )}
-            {serviceDetails?.availableForAdoption && serviceDetails.availableForAdoption.length > 0 && (
-              <div className="text-xs text-green-400">
-                {serviceDetails.availableForAdoption.length} animals available for adoption
-              </div>
-            )}
-            {serviceDetails?.rescueTypes && serviceDetails.rescueTypes.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {serviceDetails.rescueTypes.slice(0, 3).map(type => (
-                  <span key={type} className="text-xs px-1.5 py-0.5 bg-pink-700 text-pink-200 rounded">
-                    {type}
-                  </span>
-                ))}
-              </div>
-            )}
+            {serviceDetails?.availableForAdoption &&
+              serviceDetails.availableForAdoption.length > 0 && (
+                <div className="text-xs text-green-400">
+                  {serviceDetails.availableForAdoption.length} animals available
+                  for adoption
+                </div>
+              )}
+            {serviceDetails?.rescueTypes &&
+              serviceDetails.rescueTypes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {serviceDetails.rescueTypes.slice(0, 3).map((type) => (
+                    <span
+                      key={type}
+                      className="text-xs px-1.5 py-0.5 bg-pink-700 text-pink-200 rounded"
+                    >
+                      {type}
+                    </span>
+                  ))}
+                </div>
+              )}
             {serviceDetails?.adoptionFee && (
               <div className="text-xs text-yellow-400">
                 Adoption Fee: {serviceDetails.adoptionFee}
               </div>
             )}
-            {serviceDetails?.volunteerOpportunities && serviceDetails.volunteerOpportunities.length > 0 && (
-              <div className="text-xs text-blue-400">
-                Volunteer: {serviceDetails.volunteerOpportunities.slice(0, 2).join(', ')}
-              </div>
-            )}
+            {serviceDetails?.volunteerOpportunities &&
+              serviceDetails.volunteerOpportunities.length > 0 && (
+                <div className="text-xs text-blue-400">
+                  Volunteer:{" "}
+                  {serviceDetails.volunteerOpportunities.slice(0, 2).join(", ")}
+                </div>
+              )}
           </div>
         );
 
-      case 'vets':
-      case 'veterinary':
+      case "vets":
+      case "veterinary":
         return null;
 
-      case 'boardings':
-      case 'boarding':
+      case "boardings":
+      case "boarding":
         return (
           <div className="mt-2 space-y-1">
             {serviceDetails?.accommodationType && (
@@ -317,14 +355,21 @@ export const ServiceCard = ({
     price,
     provider,
     serviceDetails,
-    collectionName
+    collectionName,
   };
-  return <div className={`bg-gray-800 rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 border ${featured ? 'border-amber-500' : 'border-gray-700'}`}>
+  return (
+    <div
+      className={`bg-gray-800 rounded-lg shadow-md overflow-hidden transition-shadow hover:shadow-lg border ${
+        featured ? "border-amber-500" : "border-gray-700"
+      }`}
+    >
       <div className="relative">
         <img src={image} alt={name} className="w-full h-32 object-cover" />
-        {featured && <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+        {featured && (
+          <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
             Featured
-          </div>}
+          </div>
+        )}
         <div className="absolute top-2 left-2 bg-gray-900 bg-opacity-80 text-xs font-bold px-2 py-1 rounded-full text-rose-400">
           {category}
         </div>
@@ -344,7 +389,7 @@ export const ServiceCard = ({
         <div className="mt-2 space-y-1">
           {price && (
             <div className="text-sm text-green-400 font-semibold">
-              Price: {typeof price === 'number' ? `$${price}` : `$${price}`}
+              Price: {typeof price === "number" ? `$${price}` : `$${price}`}
             </div>
           )}
           {serviceDetails?.duration && (
@@ -377,17 +422,31 @@ export const ServiceCard = ({
         </div>
 
         <div className="flex flex-wrap gap-1 mt-2">
-          {petTypes.map(pet => <span key={pet} className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full">
+          {petTypes.map((pet) => (
+            <span
+              key={pet}
+              className="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded-full"
+            >
               {pet}
-            </span>)}
+            </span>
+          ))}
         </div>
 
         <div className="flex items-center mt-2">
           <div className="flex">
-            {[...Array(5)].map((_, i) => <StarIcon key={i} size={14} className={i < rating ? 'text-amber-400 fill-amber-400' : 'text-gray-600'} />)}
+            {[...Array(5)].map((_, i) => (
+              <StarIcon
+                key={i}
+                size={14}
+                className={
+                  i < rating ? "text-amber-400 fill-amber-400" : "text-gray-600"
+                }
+              />
+            ))}
           </div>
           <span className="text-xs text-gray-400 ml-1">
-            ({provider?.totalReviews || Math.floor(Math.random() * 50) + 5} reviews)
+            ({provider?.totalReviews || Math.floor(Math.random() * 50) + 5}{" "}
+            reviews)
           </span>
         </div>
 
@@ -396,22 +455,33 @@ export const ServiceCard = ({
         <div className="mt-3 space-y-2">
           <div className="flex space-x-2">
             <Button
+              type="button"
               className="flex-1 text-sm py-1.5"
-              onClick={() => setShowModal(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleModalOpen("view-details-button");
+              }}
             >
               View Details
             </Button>
-            <Button variant="outline" className="px-2" title="Contact Provider">
+            <Button
+              variant="outline"
+              className="px-2"
+              title="Contact Provider"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Add contact provider logic here
+              }}
+            >
               <MailIcon size={16} />
             </Button>
           </div>
-          {(collectionName === 'vets' || collectionName === 'veterinary') && (
+          {(collectionName === "vets" || collectionName === "veterinary") && (
             <div className="space-y-1">
               {checkingBooking ? (
-                <Button
-                  className="w-full text-sm py-1.5 bg-gray-600"
-                  disabled
-                >
+                <Button className="w-full text-sm py-1.5 bg-gray-600" disabled>
                   Checking...
                 </Button>
               ) : isBooked ? (
@@ -426,29 +496,44 @@ export const ServiceCard = ({
                   {existingBooking && (
                     <div className="text-xs text-green-400 text-center">
                       {existingBooking.appointmentTime
-                        ? new Date(existingBooking.appointmentTime).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }) + ' at ' + new Date(existingBooking.appointmentTime).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
+                        ? new Date(
+                            existingBooking.appointmentTime
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }) +
+                          " at " +
+                          new Date(
+                            existingBooking.appointmentTime
+                          ).toLocaleTimeString("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
                           })
-                        : (existingBooking.date && existingBooking.time)
-                          ? `${new Date(existingBooking.date).toLocaleDateString()} at ${existingBooking.time}`
-                          : 'Appointment scheduled'
-                      }
+                        : existingBooking.date && existingBooking.time
+                        ? `${new Date(
+                            existingBooking.date
+                          ).toLocaleDateString()} at ${existingBooking.time}`
+                        : "Appointment scheduled"}
                     </div>
                   )}
                 </div>
               ) : (
                 <Button
                   className="w-full text-sm py-1.5 bg-rose-600 hover:bg-rose-700"
-                  onClick={() => setShowBookingModal(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleModalOpen("book-now-button");
+                  }}
                   disabled={!activePet || !user}
                 >
-                  {!activePet ? 'Select Pet First' : !user ? 'Login to Book' : 'Book Now'}
+                  {!activePet
+                    ? "Select Pet First"
+                    : !user
+                    ? "Login to Book"
+                    : "Book Now"}
                 </Button>
               )}
             </div>
@@ -463,7 +548,9 @@ export const ServiceCard = ({
             <div className="mr-3">✓</div>
             <div>
               <div className="font-semibold">Booking Confirmed!</div>
-              <div className="text-sm opacity-90">Your vet appointment has been scheduled successfully.</div>
+              <div className="text-sm opacity-90">
+                Your vet appointment has been scheduled successfully.
+              </div>
             </div>
           </div>
         </div>
@@ -473,23 +560,10 @@ export const ServiceCard = ({
       {showModal && (
         <ServiceDetailsModal
           service={serviceData}
-          onClose={() => setShowModal(false)}
-          onBookNow={(collectionName === 'vets' || collectionName === 'veterinary') ?
-            () => {
-              setShowModal(false);
-              setShowBookingModal(true);
-            } : undefined
-          }
-        />
-      )}
-
-      {/* Vet Booking Modal */}
-      {showBookingModal && (
-        <VetBookingModal
-          service={serviceData}
-          onClose={() => setShowBookingModal(false)}
+          onClose={handleModalClose}
           onBookingSuccess={handleBookingSuccess}
         />
       )}
-    </div>;
+    </div>
+  );
 };
