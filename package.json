@@ -7,7 +7,7 @@
     "dev": "npx concurrently \"npm run server\" \"npx vite\"",
     "dev:frontend": "npx vite",
     "server": "node server/index.cjs",
-    "start": "node server/index.js",
+    "start": "node server/index.cjs",
     "build": "npx vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview"
