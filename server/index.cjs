@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const path = require('path');
 
 dotenv.config();
 
@@ -27,6 +28,15 @@ const upload = multer({ storage: storage });
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
+
+// ------------------ Static frontend serving ------------------
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+// ✅ Fallback: serve frontend only for non-API and non-upload routes
+app.get(/^(?!\/api|\/uploads).*/, (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://whiskerBond:wh1sk3rB0nd@whiskerbond.s8edfrz.mongodb.net/whiskerBond?retryWrites=true&w=majority&appName=whiskerBond';
