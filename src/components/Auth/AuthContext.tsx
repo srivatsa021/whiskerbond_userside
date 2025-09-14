@@ -208,11 +208,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        // Map MongoDB _id to id for frontend compatibility
-        const petsWithId = (data.pets || []).map((pet: any) => ({
-          ...pet,
-          id: pet._id || pet.id
-        }));
+        // Map MongoDB _id to id for frontend compatibility and randomize avatar per login
+        const petsWithId = (data.pets || []).map((pet: any) => {
+          const images = Array.isArray(pet.images) ? pet.images.filter((i: any) => typeof i === 'string') : [];
+          const selectedAspect = typeof pet.aspectRatio === 'string' ? pet.aspectRatio : '16:9';
+          const selectedFit = pet.fitMode === 'contain' ? 'contain' : 'cover';
+          const avatar = images.length > 0 ? images[Math.floor(Math.random() * images.length)] : (pet.avatar || null);
+          return {
+            ...pet,
+            id: pet._id || pet.id,
+            images,
+            avatar,
+            aspectRatio: selectedAspect,
+            fitMode: selectedFit
+          };
+        });
         setPets(petsWithId);
       }
     } catch (error) {

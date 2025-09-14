@@ -26,7 +26,8 @@ const upload = multer({ storage: storage });
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // ------------------ Static frontend serving ------------------
@@ -275,11 +276,28 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Database not connected' });
     }
 
-    const { name, age, type, breed, behavior, allergies } = req.body;
+    const { name, age, type, breed, behavior, allergies, images, aspectRatio, fitMode } = req.body;
 
     if (!name || !age || !type || !breed || !allergies) {
       return res.status(400).json({ error: 'Missing required pet information' });
     }
+
+    // Validate images array if provided
+    let imagesArray = [];
+    if (images !== undefined) {
+      if (!Array.isArray(images)) {
+        return res.status(400).json({ error: 'Images must be provided as an array of Base64 strings' });
+      }
+      imagesArray = images.filter(img => typeof img === 'string');
+      if (imagesArray.length < 1 || imagesArray.length > 5) {
+        return res.status(400).json({ error: 'You must provide between 1 and 5 images' });
+      }
+    }
+
+    // Validate aspectRatio and fitMode
+    const allowedRatios = ['1:1','4:3','16:9','3:4','original'];
+    const selectedRatio = typeof aspectRatio === 'string' && allowedRatios.includes(aspectRatio) ? aspectRatio : '16:9';
+    const selectedFit = fitMode === 'contain' ? 'contain' : 'cover';
 
     const newPet = {
       name,
@@ -289,6 +307,10 @@ app.post('/api/pets', authenticateToken, async (req, res) => {
       behavior: behavior || '',
       allergies,
       medicalDocuments: [],
+      images: imagesArray,
+      avatar: imagesArray.length > 0 ? imagesArray[0] : null,
+      aspectRatio: selectedRatio,
+      fitMode: selectedFit,
       petOwnerId: new ObjectId(req.user.userId),
       createdAt: new Date().toISOString()
     };
@@ -313,7 +335,7 @@ app.put('/api/pets/:petId', authenticateToken, async (req, res) => {
     }
 
     const { petId } = req.params;
-    const { name, age, type, breed, behavior, allergies } = req.body;
+    const { name, age, type, breed, behavior, allergies, images } = req.body;
 
     const updateData = {
       ...(name && { name }),
@@ -325,8 +347,40 @@ app.put('/api/pets/:petId', authenticateToken, async (req, res) => {
       updatedAt: new Date().toISOString()
     };
 
+    // If images provided, validate and set images + avatar
+    if (images !== undefined) {
+      if (!Array.isArray(images)) {
+        return res.status(400).json({ error: 'Images must be an array of Base64 strings' });
+      }
+      const imagesArray = images.filter(img => typeof img === 'string');
+      if (imagesArray.length < 1 || imagesArray.length > 5) {
+        return res.status(400).json({ error: 'You must provide between 1 and 5 images' });
+      }
+      updateData.images = imagesArray;
+      updateData.avatar = imagesArray.length > 0 ? imagesArray[0] : null;
+    }
+
+    // If aspectRatio provided, validate
+    const allowedRatios = ['1:1','4:3','16:9','3:4','original'];
+    if (req.body.aspectRatio !== undefined) {
+      if (typeof req.body.aspectRatio === 'string' && allowedRatios.includes(req.body.aspectRatio)) {
+        updateData.aspectRatio = req.body.aspectRatio;
+      } else {
+        return res.status(400).json({ error: 'Invalid aspectRatio' });
+      }
+    }
+
+    // If fitMode provided, validate
+    if (req.body.fitMode !== undefined) {
+      if (req.body.fitMode === 'cover' || req.body.fitMode === 'contain') {
+        updateData.fitMode = req.body.fitMode;
+      } else {
+        return res.status(400).json({ error: 'Invalid fitMode' });
+      }
+    }
+
     const result = await db.collection('allpets').updateOne(
-      { 
+      {
         _id: new ObjectId(petId),
         petOwnerId: new ObjectId(req.user.userId)
       },
